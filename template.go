@@ -27,7 +27,7 @@ func NewTemplate(descs []*protokit.FileDescriptor) *Template {
 	for _, f := range descs {
 		file := &File{
 			Name:          f.GetName(),
-			Description:   description(f.GetSyntaxComments().String()),
+			Description:   description(f.GetSyntaxComments()),
 			Package:       f.GetPackage(),
 			HasEnums:      len(f.Enums) > 0,
 			HasExtensions: len(f.Extensions) > 0,
@@ -401,7 +401,7 @@ func parseEnum(pe *protokit.EnumDescriptor) *Enum {
 		Name:        pe.GetName(),
 		LongName:    pe.GetLongName(),
 		FullName:    pe.GetFullName(),
-		Description: description(pe.GetComments().String()),
+		Description: description(pe.GetComments()),
 		Options:     mergeOptions(extractOptions(pe.GetOptions()), extensions.Transform(pe.OptionExtensions)),
 	}
 
@@ -409,7 +409,7 @@ func parseEnum(pe *protokit.EnumDescriptor) *Enum {
 		enum.Values = append(enum.Values, &EnumValue{
 			Name:        val.GetName(),
 			Number:      fmt.Sprint(val.GetNumber()),
-			Description: description(val.GetComments().String()),
+			Description: description(val.GetComments()),
 			Options:     mergeOptions(extractOptions(val.GetOptions()), extensions.Transform(val.OptionExtensions)),
 		})
 	}
@@ -424,7 +424,7 @@ func parseFileExtension(pe *protokit.ExtensionDescriptor) *FileExtension {
 		Name:               pe.GetName(),
 		LongName:           pe.GetLongName(),
 		FullName:           pe.GetFullName(),
-		Description:        description(pe.GetComments().String()),
+		Description:        description(pe.GetComments()),
 		Label:              labelName(pe.GetLabel(), pe.IsProto3(), pe.GetProto3Optional()),
 		Type:               t,
 		LongType:           lt,
@@ -442,7 +442,7 @@ func parseMessage(pm *protokit.Descriptor) *Message {
 		Name:          pm.GetName(),
 		LongName:      pm.GetLongName(),
 		FullName:      pm.GetFullName(),
-		Description:   description(pm.GetComments().String()),
+		Description:   description(pm.GetComments()),
 		HasExtensions: len(pm.GetExtensions()) > 0,
 		HasFields:     len(pm.GetMessageFields()) > 0,
 		HasOneofs:     len(pm.GetOneofDecl()) > 0,
@@ -476,7 +476,7 @@ func parseMessageField(pf *protokit.FieldDescriptor, oneofDecls []*descriptor.On
 
 	m := &MessageField{
 		Name:         pf.GetName(),
-		Description:  description(pf.GetComments().String()),
+		Description:  description(pf.GetComments()),
 		Label:        labelName(pf.GetLabel(), pf.IsProto3(), pf.GetProto3Optional()),
 		Type:         t,
 		LongType:     lt,
@@ -509,7 +509,7 @@ func parseService(ps *protokit.ServiceDescriptor) *Service {
 		Name:        ps.GetName(),
 		LongName:    ps.GetLongName(),
 		FullName:    ps.GetFullName(),
-		Description: description(ps.GetComments().String()),
+		Description: description(ps.GetComments()),
 		Options:     mergeOptions(extractOptions(ps.GetOptions()), extensions.Transform(ps.OptionExtensions)),
 	}
 
@@ -523,7 +523,7 @@ func parseService(ps *protokit.ServiceDescriptor) *Service {
 func parseServiceMethod(pm *protokit.MethodDescriptor) *ServiceMethod {
 	return &ServiceMethod{
 		Name:              pm.GetName(),
-		Description:       description(pm.GetComments().String()),
+		Description:       description(pm.GetComments()),
 		RequestType:       baseName(pm.GetInputType()),
 		RequestLongType:   strings.TrimPrefix(pm.GetInputType(), "."+pm.GetPackage()+"."),
 		RequestFullType:   strings.TrimPrefix(pm.GetInputType(), "."),
@@ -567,12 +567,22 @@ func parseType(tc typeContainer) (string, string, string) {
 	return name, name, name
 }
 
-func description(comment string) string {
+func description(comments *protokit.Comment) string {
+	var sb strings.Builder
+	sb.WriteString(commentToString(comments.Leading))
+	sb.WriteString(commentToString(comments.Trailing))
+	for _, comment := range comments.Detached {
+		sb.WriteString(commentToString(comment))
+	}
+
+	return sb.String()
+}
+
+func commentToString(comment string) string {
 	val := strings.TrimLeft(comment, "*/\n ")
 	if strings.HasPrefix(val, "@exclude") {
 		return ""
 	}
-
 	return val
 }
 
